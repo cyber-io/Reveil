@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Scan Report - http://127.0.0.1:5000</title>
+<style>
+    body { font-family: -apple-system, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #222; }
+    h1 { font-size: 1.4em; }
+    .meta { color: #666; margin-bottom: 20px; }
+    .badge { color: white; padding: 4px 10px; border-radius: 4px; font-size: 0.85em; margin-right: 8px; }
+    .finding { margin-bottom: 18px; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
+    .finding-header { padding: 10px 14px; background: #fafafa; }
+    .severity { color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; margin-right: 10px; }
+    .title { font-weight: bold; }
+    .finding-body { padding: 10px 14px; }
+    code { background: #f2f2f2; padding: 2px 5px; border-radius: 3px; }
+    .evidence { background: #f8f8f8; border: 1px solid #eee; padding: 10px; overflow-x: auto; font-size: 0.85em; }
+</style>
+</head>
+<body>
+    <h1>Web Vulnerability Scan Report</h1>
+    <div class="meta">
+        Target: <code>http://127.0.0.1:5000</code><br>
+        Scanned: 2026-07-18 04:09:35<br>
+        Total findings: 10
+    </div>
+    <div><span class="badge" style="background:#7a0000;">Critical: 3</span><span class="badge" style="background:#c0392b;">High: 2</span><span class="badge" style="background:#f1c40f;">Low: 5</span></div>
+    <h2>Findings</h2>
+    
+            <div class="finding">
+                <div class="finding-header" style="border-left: 5px solid #7a0000;">
+                    <span class="severity" style="background:#7a0000;">Critical</span>
+                    <span class="title">SQL Injection (error-based) in &#x27;username&#x27;</span>
+                </div>
+                <div class="finding-body">
+                    <p><strong>URL:</strong> <code>http://127.0.0.1:5000/login</code></p>
+                    <p>Submitting a single quote in the &#x27;username&#x27; field triggered a database error visible in the response. This strongly suggests unsanitized input is being concatenated into a SQL query.</p>
+                    <pre class="evidence">Payload: username=&#x27; | Error signature found in response</pre>
+                </div>
+            </div>
+            
+            <div class="finding">
+                <div class="finding-header" style="border-left: 5px solid #7a0000;">
+                    <span class="severity" style="background:#7a0000;">Critical</span>
+                    <span class="title">SQL Injection (error-based) in &#x27;password&#x27;</span>
+                </div>
+                <div class="finding-body">
+                    <p><strong>URL:</strong> <code>http://127.0.0.1:5000/login</code></p>
+                    <p>Submitting a single quote in the &#x27;password&#x27; field triggered a database error visible in the response. This strongly suggests unsanitized input is being concatenated into a SQL query.</p>
+                    <pre class="evidence">Payload: password=&#x27; | Error signature found in response</pre>
+                </div>
+            </div>
+            
+            <div class="finding">
+                <div class="finding-header" style="border-left: 5px solid #7a0000;">
+                    <span class="severity" style="background:#7a0000;">Critical</span>
+                    <span class="title">SQL Injection - Authentication Bypass</span>
+                </div>
+                <div class="finding-body">
+                    <p><strong>URL:</strong> <code>http://127.0.0.1:5000/login</code></p>
+                    <p>A classic SQL injection payload in the username field bypassed authentication entirely, without a valid password.</p>
+                    <pre class="evidence">Payload: username=admin&#x27;--</pre>
+                </div>
+            </div>
+            
+            <div class="finding">
+                <div class="finding-header" style="border-left: 5px solid #c0392b;">
+                    <span class="severity" style="background:#c0392b;">High</span>
+                    <span class="title">Reflected XSS in &#x27;q&#x27;</span>
+                </div>
+                <div class="finding-body">
+                    <p><strong>URL:</strong> <code>http://127.0.0.1:5000/search</code></p>
+                    <p>The &#x27;q&#x27; field reflects user input into the page without HTML-escaping. An attacker could craft a link that executes arbitrary JavaScript in a victim&#x27;s browser.</p>
+                    <pre class="evidence">Payload &quot;&lt;script&gt;alert(&#x27;xsschk9182&#x27;)&lt;/script&gt;&quot; was reflected unescaped in the response.</pre>
+                </div>
+            </div>
+            
+            <div class="finding">
+                <div class="finding-header" style="border-left: 5px solid #c0392b;">
+                    <span class="severity" style="background:#c0392b;">High</span>
+                    <span class="title">Possible IDOR - sequential IDs return distinct data</span>
+                </div>
+                <div class="finding-body">
+                    <p><strong>URL:</strong> <code>http://127.0.0.1:5000/profile/1</code></p>
+                    <p>Requesting nearby numeric IDs on this endpoint returned HTTP 200 with different content each time, with no visible ownership or authorization check. This suggests any authenticated user may be able to view other users&#x27; records by changing the ID in the URL.</p>
+                    <pre class="evidence">Accessible IDs without an authorization error: [1, 2, 3]</pre>
+                </div>
+            </div>
+            
+            <div class="finding">
+                <div class="finding-header" style="border-left: 5px solid #f1c40f;">
+                    <span class="severity" style="background:#f1c40f;">Low</span>
+                    <span class="title">Missing security header: Content-Security-Policy</span>
+                </div>
+                <div class="finding-body">
+                    <p><strong>URL:</strong> <code>http://127.0.0.1:5000</code></p>
+                    <p>Mitigates XSS and data injection by restricting allowed content sources.</p>
+                    <pre class="evidence">Missing on 7 page(s): http://127.0.0.1:5000, http://127.0.0.1:5000/, http://127.0.0.1:5000/dashboard (+4 more)</pre>
+                </div>
+            </div>
+            
+            <div class="finding">
+                <div class="finding-header" style="border-left: 5px solid #f1c40f;">
+                    <span class="severity" style="background:#f1c40f;">Low</span>
+                    <span class="title">Missing security header: X-Frame-Options</span>
+                </div>
+                <div class="finding-body">
+                    <p><strong>URL:</strong> <code>http://127.0.0.1:5000</code></p>
+                    <p>Prevents clickjacking by controlling whether the page can be framed.</p>
+                    <pre class="evidence">Missing on 7 page(s): http://127.0.0.1:5000, http://127.0.0.1:5000/, http://127.0.0.1:5000/dashboard (+4 more)</pre>
+                </div>
+            </div>
+            
+            <div class="finding">
+                <div class="finding-header" style="border-left: 5px solid #f1c40f;">
+                    <span class="severity" style="background:#f1c40f;">Low</span>
+                    <span class="title">Missing security header: X-Content-Type-Options</span>
+                </div>
+                <div class="finding-body">
+                    <p><strong>URL:</strong> <code>http://127.0.0.1:5000</code></p>
+                    <p>Prevents MIME-sniffing attacks (should be &#x27;nosniff&#x27;).</p>
+                    <pre class="evidence">Missing on 7 page(s): http://127.0.0.1:5000, http://127.0.0.1:5000/, http://127.0.0.1:5000/dashboard (+4 more)</pre>
+                </div>
+            </div>
+            
+            <div class="finding">
+                <div class="finding-header" style="border-left: 5px solid #f1c40f;">
+                    <span class="severity" style="background:#f1c40f;">Low</span>
+                    <span class="title">Missing security header: Strict-Transport-Security</span>
+                </div>
+                <div class="finding-body">
+                    <p><strong>URL:</strong> <code>http://127.0.0.1:5000</code></p>
+                    <p>Forces browsers to use HTTPS for future requests.</p>
+                    <pre class="evidence">Missing on 7 page(s): http://127.0.0.1:5000, http://127.0.0.1:5000/, http://127.0.0.1:5000/dashboard (+4 more)</pre>
+                </div>
+            </div>
+            
+            <div class="finding">
+                <div class="finding-header" style="border-left: 5px solid #f1c40f;">
+                    <span class="severity" style="background:#f1c40f;">Low</span>
+                    <span class="title">Missing security header: Referrer-Policy</span>
+                </div>
+                <div class="finding-body">
+                    <p><strong>URL:</strong> <code>http://127.0.0.1:5000</code></p>
+                    <p>Controls how much referrer information is leaked to other sites.</p>
+                    <pre class="evidence">Missing on 7 page(s): http://127.0.0.1:5000, http://127.0.0.1:5000/, http://127.0.0.1:5000/dashboard (+4 more)</pre>
+                </div>
+            </div>
+            
+</body>
+</html>

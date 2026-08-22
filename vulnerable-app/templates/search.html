@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head><title>Search - VulnBank</title>
+<style>body { font-family: Arial, sans-serif; max-width: 600px; margin: 60px auto; }</style>
+</head>
+<body>
+    <h1>Search Transactions</h1>
+    <form method="GET">
+        <input type="text" name="q" placeholder="Search...">
+        <button type="submit">Search</button>
+    </form>
+    {% if query %}
+    <!-- VULN: |safe disables Jinja2's auto-escaping, so raw HTML/JS in
+         the query string gets rendered as-is. This is a realistic mistake -
+         developers add |safe to allow "rich" search results and forget
+         it also allows script execution. -->
+    <p>You searched for: {{ query|safe }}</p>
+    <p>No results found.</p>
+    {% endif %}
+    <p><a href="/">Home</a></p>
+</body>
+</html>

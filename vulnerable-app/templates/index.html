@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VulnBank</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 60px auto; }
+        nav a { margin-right: 15px; }
+        .banner { background: #fee; border: 1px solid #c00; padding: 10px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="banner">⚠️ VulnBank is an intentionally vulnerable app for security testing only.</div>
+    <h1>VulnBank</h1>
+    <nav>
+        {% if user %}
+            Logged in as {{ user }} | <a href="/dashboard">Dashboard</a> | <a href="/logout">Logout</a>
+        {% else %}
+            <a href="/login">Login</a>
+        {% endif %}
+        | <a href="/search">Search</a>
+    </nav>
+</body>
+</html>

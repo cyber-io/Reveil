@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head><title>Dashboard - VulnBank</title>
+<style>body { font-family: Arial, sans-serif; max-width: 600px; margin: 60px auto; }</style>
+</head>
+<body>
+    <h1>Welcome, {{ username }}</h1>
+    <p>Your user ID is {{ user_id }}.</p>
+    <p><a href="/profile/{{ user_id }}">View my profile</a></p>
+    <p><a href="/">Home</a> | <a href="/logout">Logout</a></p>
+</body>
+</html>

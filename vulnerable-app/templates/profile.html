@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head><title>Profile - VulnBank</title>
+<style>body { font-family: Arial, sans-serif; max-width: 600px; margin: 60px auto; }</style>
+</head>
+<body>
+    <h1>Profile: {{ user['username'] }}</h1>
+    <p>ID: {{ user['id'] }}</p>
+    <p>Email: {{ user['email'] }}</p>
+    <p>Balance: ${{ user['balance'] }}</p>
+    <p><a href="/dashboard">Back to dashboard</a></p>
+</body>
+</html>
