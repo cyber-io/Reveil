@@ -1,4 +1,4 @@
-# Web App Security Lab
+# Reveil Vuln Scanner
 
 A self-contained project with two parts:
 
