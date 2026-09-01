@@ -1,22 +1,61 @@
 <!DOCTYPE html>
-<html>
-<head><title>Search - VulnBank</title>
-<style>body { font-family: Arial, sans-serif; max-width: 600px; margin: 60px auto; }</style>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Search // VulnBank</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Search Transactions</h1>
-    <form method="GET">
-        <input type="text" name="q" placeholder="Search...">
-        <button type="submit">Search</button>
-    </form>
-    {% if query %}
-    <!-- VULN: |safe disables Jinja2's auto-escaping, so raw HTML/JS in
-         the query string gets rendered as-is. This is a realistic mistake -
-         developers add |safe to allow "rich" search results and forget
-         it also allows script execution. -->
-    <p>You searched for: {{ query|safe }}</p>
-    <p>No results found.</p>
-    {% endif %}
-    <p><a href="/">Home</a></p>
+    <div class="lab-banner">
+        <span>SECURITY TESTING ENVIRONMENT &bull; VulnBank Research Application</span>
+    </div>
+
+    <header class="navbar">
+        <a href="/" class="brand">
+            <img src="{{ url_for('static', filename='favicon.svg') }}" alt="VulnBank" class="brand-icon">
+            <span class="brand-name">VulnBank</span>
+        </a>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/dashboard" class="nav-link">Dashboard</a>
+            <a href="/login" class="nav-link">Sign In</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h1 class="page-title">Transaction Search</h1>
+            <p class="page-subtitle">Search transactions by description, recipient, or memo.</p>
+        </div>
+
+        <div class="card">
+            <form method="GET" class="search-form">
+                <input type="text" name="q" class="search-input" placeholder="Search transactions..." value="{{ query or '' }}" autocomplete="off">
+                <button type="submit" class="search-btn">Search</button>
+            </form>
+
+            {% if query %}
+                <!-- VULN: |safe disables Jinja2 auto-escaping -->
+                <div class="search-result-box">
+                    <p style="font-size:14px;color:#FFF;margin-bottom:12px;">Search results for: <strong>{{ query|safe }}</strong></p>
+                    <div style="background:#080C14;padding:16px;border-radius:6px;border:1px solid var(--border);color:var(--text-muted);font-size:13px;text-align:center;">
+                        No matching transactions found.
+                    </div>
+                </div>
+            {% endif %}
+
+            <div style="margin-top:20px;">
+                <a href="/" style="color:var(--text-dim);font-size:13px;text-decoration:none;">&larr; Back to home</a>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        VulnBank &copy; 2026. Designed for security evaluation and vulnerability scanning labs.
+    </footer>
 </body>
 </html>
+
+

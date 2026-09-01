@@ -1,80 +1,344 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VulnScan Console</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reveil // Web Security Scanner</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-<div class="topbar">
-    <div class="brand">
-        <span class="brand-mark">
-            <svg viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L3 6v6c0 5 3.8 8.7 9 10 5.2-1.3 9-5 9-10V6l-9-4z" stroke="#35D6C4" stroke-width="1.6" stroke-linejoin="round"/>
-                <circle cx="12" cy="11" r="2.6" stroke="#35D6C4" stroke-width="1.4"/>
-            </svg>
-        </span>
-        VULNSCAN <small>web console</small>
-    </div>
-    <div class="status-pill idle mono" id="statusPill">
-        <span class="status-dot"></span>
-        <span id="statusText">idle</span>
-    </div>
-</div>
-
-<div class="layout">
-    <!-- Sidebar: scan config + history -->
-    <div class="sidebar">
-        <div>
-            <div class="panel-label">scan config</div>
-            <form id="scanForm">
-                <div class="field">
-                    <label for="target">target url</label>
-                    <input type="text" id="target" name="target" placeholder="http://127.0.0.1:5000" required>
-                </div>
-                <div class="field">
-                    <label for="loginUrl">login path <span style="color:var(--text-dim)">(optional)</span></label>
-                    <input type="text" id="loginUrl" name="login_url" placeholder="/login">
-                </div>
-                <div class="field-row">
-                    <div class="field">
-                        <label for="username">username</label>
-                        <input type="text" id="username" name="username" placeholder="alice">
-                    </div>
-                    <div class="field">
-                        <label for="password">password</label>
-                        <input type="password" id="password" name="password" placeholder="••••••••">
-                    </div>
-                </div>
-                <div class="field">
-                    <label for="maxPages">max pages to crawl</label>
-                    <input type="number" id="maxPages" name="max_pages" value="25" min="1" max="200">
-                </div>
-                <button type="submit" class="run-btn" id="runBtn">▶ RUN SCAN</button>
-                <div class="error-msg" id="errorMsg"></div>
-            </form>
+    <!-- Header Navigation -->
+    <header class="app-header">
+        <div class="header-left">
+            <a href="/" class="brand">
+                <img src="{{ url_for('static', filename='favicon.svg') }}" alt="Reveil" class="brand-logo">
+                <span class="brand-name">Reveil</span>
+                <span class="brand-tag">VULNERABILITY SCANNER</span>
+            </a>
         </div>
 
-        <div>
-            <div class="panel-label">scan history</div>
-            <div class="history-list" id="historyList">
-                <div class="history-empty">No scans yet this session.</div>
+        <nav class="nav-tabs" role="tablist">
+            <button type="button" class="nav-tab active" data-view="config" role="tab" aria-selected="true">
+                <span class="tab-label">Target Config</span>
+            </button>
+            <button type="button" class="nav-tab" data-view="console" role="tab" aria-selected="false">
+                <span class="tab-label">Live Console</span>
+                <span class="pulse-indicator" id="consolePulse" style="display:none;"></span>
+            </button>
+            <button type="button" class="nav-tab" data-view="findings" role="tab" aria-selected="false">
+                <span class="tab-label">Findings</span>
+                <span class="tab-badge" id="findingsCountBadge" style="display:none;">0</span>
+            </button>
+            <button type="button" class="nav-tab" data-view="endpoints" role="tab" aria-selected="false">
+                <span class="tab-label">Endpoints</span>
+                <span class="tab-badge" id="endpointsCountBadge" style="display:none;">0</span>
+            </button>
+            <button type="button" class="nav-tab" data-view="history" role="tab" aria-selected="false">
+                <span class="tab-label">History</span>
+                <span class="tab-badge" id="historyCountBadge" style="display:none;">0</span>
+            </button>
+        </nav>
+
+        <div class="header-right">
+            <div class="status-indicator idle" id="statusIndicator">
+                <span class="status-dot"></span>
+                <span class="status-text" id="statusText">READY</span>
             </div>
+            <button type="button" class="btn-download-report" id="headerDownloadBtn" style="display:none;" title="Download HTML Assessment Report">
+                Download Report
+            </button>
+        </div>
+    </header>
+
+    <!-- Target Context Sub-bar (Visible when target is active) -->
+    <div class="active-target-bar" id="activeTargetBar" style="display:none;">
+        <div class="target-info">
+            <span class="target-label">ACTIVE AUDIT:</span>
+            <span class="target-url mono" id="targetUrlChip">-</span>
+        </div>
+        <div class="target-meta">
+            <span class="findings-chip" id="targetFindingsChip">0 Findings</span>
         </div>
     </div>
 
-    <!-- Main: results -->
-    <div class="main" id="mainArea">
-        <div class="main-empty">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L3 6v6c0 5 3.8 8.7 9 10 5.2-1.3 9-5 9-10V6l-9-4z" stroke="#4A5265" stroke-width="1.2"/></svg>
-            <h2>No scan running</h2>
-            <p>Configure a target on the left and run a scan to see live progress and findings here.</p>
-        </div>
-    </div>
-</div>
+    <!-- Main Content Container -->
+    <main class="app-main">
 
-<script src="{{ url_for('static', filename='app.js') }}"></script>
+        <!-- ==================== VIEW 1: TARGET CONFIGURATION ==================== -->
+        <section class="view-panel active" id="view-config" role="tabpanel">
+            <div class="config-grid">
+                <!-- Left: Form -->
+                <div class="panel-card form-panel">
+                    <div class="card-header">
+                        <h2>Target Specification</h2>
+                        <p>Define the web application endpoint and audit parameters.</p>
+                    </div>
+
+                    <form id="scanForm" class="scan-form">
+                        <div class="form-group">
+                            <label for="target" class="form-label">TARGET URL <span class="required">*</span></label>
+                            <div class="input-with-action">
+                                <input type="text" id="target" name="target" class="form-input mono" placeholder="http://127.0.0.1:5000" required autocomplete="off">
+                                <button type="button" class="input-clear-btn" id="clearTargetBtn" title="Clear URL">&times;</button>
+                            </div>
+                        </div>
+
+                        <div class="accordion-section">
+                            <div class="accordion-header" id="authAccordionToggle">
+                                <span class="accordion-title">Authentication Settings (Optional)</span>
+                                <span class="accordion-chevron">&#9662;</span>
+                            </div>
+                            <div class="accordion-content" id="authAccordionContent">
+                                <div class="form-group">
+                                    <label for="loginUrl" class="form-label">LOGIN ENDPOINT</label>
+                                    <input type="text" id="loginUrl" name="login_url" class="form-input mono" placeholder="/login" autocomplete="off">
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="username" class="form-label">USERNAME</label>
+                                        <input type="text" id="username" name="username" class="form-input" placeholder="e.g. alice" autocomplete="username">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="password" class="form-label">PASSWORD</label>
+                                        <div class="password-wrapper">
+                                            <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" autocomplete="current-password">
+                                            <button type="button" class="password-toggle-btn" id="togglePasswordBtn" title="Toggle password visibility">&#128065;</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="label-with-val">
+                                <label for="maxPages" class="form-label">CRAWL DEPTH LIMIT</label>
+                                <span class="range-display mono" id="maxPagesDisplay">25 pages</span>
+                            </div>
+                            <input type="range" id="maxPagesSlider" class="range-slider" min="5" max="100" value="25" step="5">
+                            <input type="hidden" id="maxPages" name="max_pages" value="25">
+                        </div>
+
+                        <div class="form-error" id="errorMsg" style="display:none;" role="alert">
+                            <strong>Error:</strong> <span id="errorText"></span>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary" id="runBtn">
+                                <span class="btn-text">Start Security Scan</span>
+                                <span class="btn-shortcut">Ctrl+Enter</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Right: Engine & Overview -->
+                <div class="panel-card info-panel">
+                    <div class="card-header">
+                        <h2>Audit Engine Suite</h2>
+                        <p>Configured detection modules executed during audit sequence.</p>
+                    </div>
+
+                    <div class="engine-list">
+                        <div class="engine-item">
+                            <div class="engine-status active"></div>
+                            <div class="engine-details">
+                                <div class="engine-name">SQL Injection Engine</div>
+                                <div class="engine-desc">Detects error-based SQLi and authentication bypass vulnerabilities across input forms.</div>
+                            </div>
+                        </div>
+
+                        <div class="engine-item">
+                            <div class="engine-status active"></div>
+                            <div class="engine-details">
+                                <div class="engine-name">Reflected XSS Engine</div>
+                                <div class="engine-desc">Audits URL parameters and form inputs for unescaped HTML/JavaScript reflection.</div>
+                            </div>
+                        </div>
+
+                        <div class="engine-item">
+                            <div class="engine-status active"></div>
+                            <div class="engine-details">
+                                <div class="engine-name">Insecure Direct Object Reference (IDOR)</div>
+                                <div class="engine-desc">Probes numeric resource endpoints for missing authorization controls.</div>
+                            </div>
+                        </div>
+
+                        <div class="engine-item">
+                            <div class="engine-status active"></div>
+                            <div class="engine-details">
+                                <div class="engine-name">Security Headers &amp; Cookie Audit</div>
+                                <div class="engine-desc">Validates CSP, HSTS, X-Frame-Options, and Secure/HttpOnly cookie attributes.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="scope-box">
+                        <h3>Scan Protocol</h3>
+                        <p>The scanner crawls within the target domain up to the specified page limit, maintaining active session state after login and testing all discovered forms and parameters.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 2: LIVE TERMINAL ==================== -->
+        <section class="view-panel" id="view-console" role="tabpanel">
+            <div class="console-wrapper">
+                <div class="console-toolbar">
+                    <div class="console-title mono" id="consoleTargetTitle">TARGET: NONE</div>
+                    <div class="console-actions">
+                        <button type="button" class="btn-subtle" id="autoscrollToggleBtn">Autoscroll: ON</button>
+                        <button type="button" class="btn-subtle" id="copyLogBtn">Copy Log</button>
+                    </div>
+                </div>
+                <div class="terminal" id="terminal" role="log" aria-live="polite"></div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 3: FINDINGS ==================== -->
+        <section class="view-panel" id="view-findings" role="tabpanel">
+            <div class="findings-wrapper" id="findingsEmptyState">
+                <div class="empty-state-card">
+                    <div class="empty-icon">&#128737;</div>
+                    <h3>No Scan Report Loaded</h3>
+                    <p>Configure a target and run an audit to inspect vulnerability findings and remediation guidance.</p>
+                    <button type="button" class="btn-primary" onclick="switchView('config')">Configure Target</button>
+                </div>
+            </div>
+
+            <div class="findings-wrapper" id="findingsReportLayout" style="display:none;">
+                <!-- Summary Header -->
+                <div class="report-header-card">
+                    <div class="report-meta-left">
+                        <div class="meta-row">
+                            <span class="report-id mono" id="repScanId">SCAN #-</span>
+                            <span class="report-date mono" id="repTimestamp">-</span>
+                        </div>
+                        <h1 class="report-target mono" id="repTargetUrl">-</h1>
+                    </div>
+                    <div class="report-meta-right">
+                        <span class="posture-badge" id="repPostureBadge">MODERATE RISK</span>
+                        <button type="button" class="btn-download-report" id="downloadReportBtn">Export HTML Report</button>
+                    </div>
+                </div>
+
+                <!-- Metric Cards -->
+                <div class="metrics-grid">
+                    <div class="metric-card critical" data-filter-sev="Critical">
+                        <div class="metric-label">CRITICAL</div>
+                        <div class="metric-value mono" id="countCritical">0</div>
+                    </div>
+                    <div class="metric-card high" data-filter-sev="High">
+                        <div class="metric-label">HIGH</div>
+                        <div class="metric-value mono" id="countHigh">0</div>
+                    </div>
+                    <div class="metric-card medium" data-filter-sev="Medium">
+                        <div class="metric-label">MEDIUM</div>
+                        <div class="metric-value mono" id="countMedium">0</div>
+                    </div>
+                    <div class="metric-card low" data-filter-sev="Low">
+                        <div class="metric-label">LOW</div>
+                        <div class="metric-value mono" id="countLow">0</div>
+                    </div>
+                    <div class="metric-card info" data-filter-sev="Info">
+                        <div class="metric-label">INFO</div>
+                        <div class="metric-value mono" id="countInfo">0</div>
+                    </div>
+                </div>
+
+                <!-- Filter & Search Toolbar -->
+                <div class="filter-toolbar">
+                    <div class="search-box">
+                        <input type="text" id="findingSearchInput" class="search-input" placeholder="Filter findings by title, URL, or keyword..." autocomplete="off">
+                        <button type="button" class="clear-search-btn" id="clearSearchBtn" style="display:none;">&times;</button>
+                    </div>
+                    <div class="filter-pills">
+                        <button type="button" class="filter-pill active" data-sev="ALL">All (<span id="pillCountAll">0</span>)</button>
+                        <button type="button" class="filter-pill sev-critical" data-sev="Critical">Critical (<span id="pillCountCritical">0</span>)</button>
+                        <button type="button" class="filter-pill sev-high" data-sev="High">High (<span id="pillCountHigh">0</span>)</button>
+                        <button type="button" class="filter-pill sev-medium" data-sev="Medium">Medium (<span id="pillCountMedium">0</span>)</button>
+                        <button type="button" class="filter-pill sev-low" data-sev="Low">Low (<span id="pillCountLow">0</span>)</button>
+                    </div>
+                    <div class="expand-toggles">
+                        <button type="button" class="btn-subtle" id="expandAllFindingsBtn">Expand All</button>
+                        <button type="button" class="btn-subtle" id="collapseAllFindingsBtn">Collapse All</button>
+                    </div>
+                </div>
+
+                <!-- Findings Accordion -->
+                <div class="findings-list" id="findingsList"></div>
+
+                <div class="no-filter-matches" id="noFilterMatches" style="display:none;">
+                    <p>No findings match your active filter criteria.</p>
+                    <button type="button" class="btn-subtle" id="resetFiltersBtn">Reset Filters</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 4: ENDPOINTS (ATTACK SURFACE) ==================== -->
+        <section class="view-panel" id="view-endpoints" role="tabpanel">
+            <div class="surface-wrapper">
+                <div class="surface-header">
+                    <div>
+                        <h2>Discovered Endpoints</h2>
+                        <p>Crawled endpoints and interactive forms discovered during audit.</p>
+                    </div>
+                    <div class="surface-stats">
+                        <div class="stat-pill"><strong id="surfaceEndpointsCount">0</strong> Endpoints</div>
+                        <div class="stat-pill"><strong id="surfaceFormsCount">0</strong> Forms</div>
+                        <div class="stat-pill vuln"><strong id="surfaceVulnEndpointsCount">0</strong> Vulnerable</div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:100px;">STATUS</th>
+                                <th>ENDPOINT URL</th>
+                                <th style="width:110px;">METHOD</th>
+                                <th>PARAMETERS</th>
+                                <th>FINDINGS</th>
+                                <th style="width:90px;">ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody id="surfaceTableBody">
+                            <tr><td colspan="6" class="table-empty-cell">No endpoint data available. Run a scan to discover endpoints.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 5: HISTORY ==================== -->
+        <section class="view-panel" id="view-history" role="tabpanel">
+            <div class="history-wrapper">
+                <div class="history-header">
+                    <div>
+                        <h2>Scan History</h2>
+                        <p>Recorded scans available for inspection and export.</p>
+                    </div>
+                    <button type="button" class="btn-subtle" id="refreshHistoryBtn">Refresh</button>
+                </div>
+
+                <div class="history-grid" id="historyCardsGrid">
+                    <div class="history-empty-card">
+                        <h3>No Scans Recorded</h3>
+                        <p>Completed scans will appear here for reference and export.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

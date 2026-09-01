@@ -1,21 +1,68 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Login - VulnBank</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 400px; margin: 60px auto; }
-        input { display: block; margin: 10px 0; padding: 8px; width: 100%; box-sizing: border-box; }
-        .error { color: red; }
-    </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In // VulnBank</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Login</h1>
-    {% if error %}<p class="error">{{ error }}</p>{% endif %}
-    <form method="POST">
-        <input type="text" name="username" placeholder="Username" required>
-        <input type="password" name="password" placeholder="Password" required>
-        <button type="submit">Login</button>
-    </form>
-    <p><a href="/">Home</a></p>
+    <div class="lab-banner">
+        <span>SECURITY TESTING ENVIRONMENT &bull; VulnBank Research Application</span>
+    </div>
+
+    <header class="navbar">
+        <a href="/" class="brand">
+            <img src="{{ url_for('static', filename='favicon.svg') }}" alt="VulnBank" class="brand-icon">
+            <span class="brand-name">VulnBank</span>
+        </a>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/search" class="nav-link">Search</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="auth-wrapper">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <img src="{{ url_for('static', filename='favicon.svg') }}" alt="VulnBank" class="auth-logo">
+                    <h2>Sign in to VulnBank</h2>
+                    <p>Enter your account credentials to access your banking dashboard.</p>
+                </div>
+
+                {% if error %}
+                    <div class="alert-danger" role="alert">
+                        <strong>Error:</strong> {{ error }}
+                    </div>
+                {% endif %}
+
+                <form method="POST" id="loginForm">
+                    <div class="form-group">
+                        <label class="form-label" for="username">Username</label>
+                        <input type="text" id="username" name="username" class="form-input" placeholder="Enter username" required autocomplete="username">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="password">Password</label>
+                        <input type="password" id="password" name="password" class="form-input" placeholder="Enter password" required autocomplete="current-password">
+                    </div>
+
+                    <button type="submit" class="btn-submit">Sign In</button>
+                </form>
+
+                <p style="text-align:center;margin-top:24px;font-size:13px;">
+                    <a href="/" style="color:var(--text-dim);text-decoration:none;">&larr; Back to home</a>
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        VulnBank &copy; 2026. Designed for security evaluation and vulnerability scanning labs.
+    </footer>
 </body>
 </html>
+
+

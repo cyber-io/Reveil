@@ -1,12 +1,84 @@
 <!DOCTYPE html>
-<html>
-<head><title>Dashboard - VulnBank</title>
-<style>body { font-family: Arial, sans-serif; max-width: 600px; margin: 60px auto; }</style>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Dashboard // VulnBank</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Welcome, {{ username }}</h1>
-    <p>Your user ID is {{ user_id }}.</p>
-    <p><a href="/profile/{{ user_id }}">View my profile</a></p>
-    <p><a href="/">Home</a> | <a href="/logout">Logout</a></p>
+    <div class="lab-banner">
+        <span>SECURITY TESTING ENVIRONMENT &bull; VulnBank Research Application</span>
+    </div>
+
+    <header class="navbar">
+        <a href="/" class="brand">
+            <img src="{{ url_for('static', filename='favicon.svg') }}" alt="VulnBank" class="brand-icon">
+            <span class="brand-name">VulnBank</span>
+        </a>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/search" class="nav-link">Search Transactions</a>
+            <span class="user-pill mono">{{ username }} (ID: {{ user_id }})</span>
+            <a href="/logout" class="nav-link" style="color:var(--danger);">Logout</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h1 class="page-title">Account Dashboard</h1>
+            <p class="page-subtitle">Welcome back, {{ username }} &bull; Account #VB-00{{ user_id }}89</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="balance-card">
+                <div>
+                    <span class="balance-label">PRIMARY CHECKING BALANCE</span>
+                    <div class="balance-amount">$5,000.00 USD</div>
+                    <div class="account-num">Account ID: #{{ user_id }} &bull; Routing: 021000021</div>
+                </div>
+                <div style="margin-top:20px;">
+                    <a href="/profile/{{ user_id }}" class="nav-btn" style="display:inline-block;">View Account Profile &rarr;</a>
+                </div>
+            </div>
+
+            <div class="quick-actions-card">
+                <h3 style="color:#FFF;font-size:16px;">Account Services</h3>
+                <a href="/profile/{{ user_id }}" class="action-btn-link">
+                    <span>Manage Profile #{{ user_id }}</span>
+                    <span>&rarr;</span>
+                </a>
+                <a href="/search" class="action-btn-link">
+                    <span>Search Past Transactions</span>
+                    <span>&rarr;</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="color:#FFF;margin-bottom:16px;">Recent Transactions</h3>
+            <div style="font-family:var(--font-mono);font-size:12.5px;display:flex;flex-direction:column;gap:8px;">
+                <div style="display:flex;justify-content:space-between;background:#080C14;padding:12px 16px;border-radius:6px;">
+                    <span>Direct Deposit - Payroll</span>
+                    <span style="color:var(--accent);font-weight:700;">+$3,250.00</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;background:#080C14;padding:12px 16px;border-radius:6px;">
+                    <span>Infrastructure &amp; Server Hosting</span>
+                    <span style="color:#FCA5A5;font-weight:700;">-$120.00</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;background:#080C14;padding:12px 16px;border-radius:6px;">
+                    <span>Incoming Wire Transfer</span>
+                    <span style="color:var(--accent);font-weight:700;">+$1,870.00</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        VulnBank &copy; 2026. Designed for security evaluation and vulnerability scanning labs.
+    </footer>
 </body>
 </html>
+
+
