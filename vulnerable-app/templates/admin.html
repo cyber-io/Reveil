@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel // VulnBank</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="lab-banner">
+        <span>SECURITY TESTING ENVIRONMENT &bull; VulnBank Research Application</span>
+    </div>
+
+    <header class="navbar">
+        <a href="/" class="brand">
+            <img src="{{ url_for('static', filename='favicon.svg') }}" alt="VulnBank" class="brand-icon">
+            <span class="brand-name">VulnBank</span>
+        </a>
+        <nav class="nav-links">
+            <a href="/dashboard" class="nav-link">Dashboard</a>
+            <a href="/search" class="nav-link">Search</a>
+            <a href="/logout" class="nav-link" style="color:var(--danger);">Logout</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h1 class="page-title">Admin Panel</h1>
+            <p class="page-subtitle">Every VulnBank account &mdash; visible to whichever user happens to load this page.</p>
+        </div>
+
+        <div class="card">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="text-align:left;color:var(--text-dim);font-size:12px;">
+                        <th style="padding:10px;">ID</th>
+                        <th style="padding:10px;">Username</th>
+                        <th style="padding:10px;">Email</th>
+                        <th style="padding:10px;">Balance</th>
+                        <th style="padding:10px;">Admin?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr style="border-top:1px solid var(--border);">
+                        <td style="padding:10px;font-family:var(--font-mono);">#{{ u['id'] }}</td>
+                        <td style="padding:10px;">{{ u['username'] }}</td>
+                        <td style="padding:10px;font-family:var(--font-mono);">{{ u['email'] }}</td>
+                        <td style="padding:10px;font-family:var(--font-mono);color:var(--accent);">${{ u['balance'] }}</td>
+                        <td style="padding:10px;">{{ 'Yes' if u['is_admin'] else 'No' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <footer class="footer">
+        VulnBank &copy; 2026. Designed for security evaluation and vulnerability scanning labs.
+    </footer>
+</body>
+</html>

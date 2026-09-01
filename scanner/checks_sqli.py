@@ -46,9 +46,9 @@ def check_sqli(session, page_url, form):
         payload_data[target_input["name"]] = ERROR_PAYLOAD
         try:
             if method == "post":
-                resp = session.post(action, data=payload_data, timeout=5)
+                resp = session.post(action, data=payload_data, timeout=10)
             else:
-                resp = session.get(action, params=payload_data, timeout=5)
+                resp = session.get(action, params=payload_data, timeout=10)
         except Exception:
             continue
         if _looks_like_sql_error(resp.text):
@@ -78,7 +78,7 @@ def check_sqli(session, page_url, form):
                 else:
                     payload_data[i["name"]] = payload
             try:
-                resp = session.post(action, data=payload_data, timeout=5, allow_redirects=True)
+                resp = session.post(action, data=payload_data, timeout=10, allow_redirects=True)
             except Exception:
                 continue
             # Heuristic: successful bypass usually redirects away from the

@@ -18,27 +18,44 @@
         sqli: {
             cwe: "CWE-89: SQL Injection",
             owasp: "OWASP A03:2021",
+            mechanism: "User input is concatenated directly into a SQL query string instead of being bound as a parameter. A single quote (') or a comment marker (--) lets an attacker change the query's logic - matching every row or truncating a password check entirely.",
             remediation: "Use parameterized queries (prepared statements) with placeholder bindings. Never concatenate unsanitized user input directly into SQL commands."
         },
         xss: {
             cwe: "CWE-79: Cross-Site Scripting (XSS)",
             owasp: "OWASP A03:2021",
+            mechanism: "User input is written back into the HTML response without escaping. A browser can't tell attacker-supplied markup apart from the page's own, so an injected <script> tag runs with the site's own privileges against any victim who loads the page.",
             remediation: "Contextually HTML-encode user input before rendering. Avoid Jinja2 `|safe` unless content is strictly sanitized with an HTML sanitizer."
         },
         idor: {
             cwe: "CWE-639: Insecure Direct Object Reference",
             owasp: "OWASP A01:2021",
+            mechanism: "The endpoint fetches a record using a client-supplied identifier (a sequential numeric ID) but never checks that it belongs to the requesting user - so incrementing the ID pulls back someone else's data.",
             remediation: "Enforce server-side authorization checks on all record retrieval endpoints. Validate that the logged-in session user owns the requested record."
         },
         headers: {
             cwe: "CWE-693: Protection Mechanism Failure",
             owasp: "OWASP A05:2021",
+            mechanism: "Browsers only enable extra protections (script-source restrictions, clickjacking protection, forced HTTPS) when the server opts in via a response header. Without it, permissive defaults widen the blast radius of any other bug on the page.",
             remediation: "Set standard security response headers at the reverse proxy or web server layer: CSP, X-Frame-Options, X-Content-Type-Options, and HSTS."
         },
         cookie: {
             cwe: "CWE-614 / CWE-1004: Insecure Cookie Flags",
             owasp: "OWASP A05:2021",
+            mechanism: "Without HttpOnly, any JavaScript on the page (including an XSS payload) can read the session cookie directly. Without Secure, the same cookie can be sent over plain HTTP and exposed on the network.",
             remediation: "Configure session cookies with `HttpOnly=True` to prevent theft via JavaScript/XSS, `Secure=True` for TLS, and `SameSite='Lax'`."
+        },
+        csrf: {
+            cwe: "CWE-352: Cross-Site Request Forgery (CSRF)",
+            owasp: "OWASP A01:2021",
+            mechanism: "The request is authenticated only by the session cookie, which browsers attach automatically regardless of which page triggered the request. With no unpredictable per-request token, a malicious page can silently auto-submit this form using a logged-in victim's session.",
+            remediation: "Add anti-CSRF tokens to every state-changing form (e.g. Flask-WTF's CSRFProtect) and set session cookies with `SameSite=Lax` or `Strict`."
+        },
+        bac: {
+            cwe: "CWE-862: Missing Authorization",
+            owasp: "OWASP A01:2021",
+            mechanism: "The route checks only that someone is logged in, never that this specific user holds the required role. With no permission check gating the endpoint, any account can reach admin-only functionality by requesting the URL directly.",
+            remediation: "Enforce server-side role/permission checks on every privileged route. Deny by default and verify the session user's role before serving admin functionality."
         }
     };
 
@@ -71,9 +88,6 @@
         // Form
         scanForm: document.getElementById("scanForm"),
         targetInput: document.getElementById("target"),
-        loginUrlInput: document.getElementById("loginUrl"),
-        usernameInput: document.getElementById("username"),
-        passwordInput: document.getElementById("password"),
         maxPagesInput: document.getElementById("maxPages"),
         maxPagesSlider: document.getElementById("maxPagesSlider"),
         maxPagesDisplay: document.getElementById("maxPagesDisplay"),
@@ -81,9 +95,6 @@
         errorMsg: document.getElementById("errorMsg"),
         errorText: document.getElementById("errorText"),
         clearTargetBtn: document.getElementById("clearTargetBtn"),
-        togglePasswordBtn: document.getElementById("togglePasswordBtn"),
-        authAccordionToggle: document.getElementById("authAccordionToggle"),
-        authAccordionContent: document.getElementById("authAccordionContent"),
 
         // Console
         consoleTargetTitle: document.getElementById("consoleTargetTitle"),
@@ -178,15 +189,6 @@
 
     window.switchView = switchView;
 
-    // --- Authentication Accordion Toggle ---
-    if (elements.authAccordionToggle) {
-        elements.authAccordionToggle.addEventListener("click", () => {
-            const isHidden = elements.authAccordionContent.style.display === "none";
-            elements.authAccordionContent.style.display = isHidden ? "block" : "none";
-            elements.authAccordionToggle.querySelector(".accordion-chevron").innerHTML = isHidden ? "&#9662;" : "&#9656;";
-        });
-    }
-
     // --- Slider & Clear Controls ---
     elements.maxPagesSlider.addEventListener("input", (e) => {
         elements.maxPagesInput.value = e.target.value;
@@ -196,12 +198,6 @@
     elements.clearTargetBtn.addEventListener("click", () => {
         elements.targetInput.value = "";
         elements.targetInput.focus();
-    });
-
-    elements.togglePasswordBtn.addEventListener("click", () => {
-        const isPass = elements.passwordInput.type === "password";
-        elements.passwordInput.type = isPass ? "text" : "password";
-        elements.togglePasswordBtn.textContent = isPass ? "🔒" : "👁";
     });
 
     // --- Scan Execution ---
@@ -217,7 +213,11 @@
         }
 
         if (!rawTarget.startsWith("http://") && !rawTarget.startsWith("https://")) {
-            rawTarget = "http://" + rawTarget;
+            // Local/loopback targets (the bundled demo app) default to
+            // plain http; anything else is assumed to be a real hosted
+            // target served over TLS.
+            const isLocal = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)(:|\/|$)/i.test(rawTarget);
+            rawTarget = (isLocal ? "http://" : "https://") + rawTarget;
             elements.targetInput.value = rawTarget;
         }
 
@@ -236,9 +236,6 @@
 
         const payload = {
             target: rawTarget,
-            login_url: elements.loginUrlInput.value.trim(),
-            username: elements.usernameInput.value.trim(),
-            password: elements.passwordInput.value,
             max_pages: parseInt(elements.maxPagesInput.value, 10) || 25
         };
 
@@ -496,6 +493,10 @@
             return VULN_METADATA.sqli;
         } else if (title.includes("xss")) {
             return VULN_METADATA.xss;
+        } else if (title.includes("csrf") || title.includes("cross-site request forgery")) {
+            return VULN_METADATA.csrf;
+        } else if (title.includes("broken access control")) {
+            return VULN_METADATA.bac;
         } else if (title.includes("idor")) {
             return VULN_METADATA.idor;
         } else if (title.includes("header")) {
@@ -564,6 +565,12 @@
                             <div class="section-label">DESCRIPTION & IMPACT</div>
                             <p class="desc-text">${escapeHtml(f.description)}</p>
                         </div>
+
+                        ${meta.mechanism ? `
+                        <div class="mechanism-box">
+                            <div class="section-label">HOW THIS VULNERABILITY WORKS</div>
+                            <p class="desc-text">${escapeHtml(meta.mechanism)}</p>
+                        </div>` : ''}
 
                         ${f.evidence ? `
                         <div class="evidence-box">
@@ -671,7 +678,7 @@
             return;
         }
         window.location.href = `/api/report/${state.currentScanId}/download`;
-        showToast("Exporting assessment report...", "success");
+        showToast("Exporting PDF assessment report...", "success");
     }
 
     elements.downloadReportBtn.addEventListener("click", triggerDownloadReport);

@@ -25,9 +25,9 @@ def check_xss_form(session, page_url, form):
         data[target_input["name"]] = PAYLOAD
         try:
             if method == "post":
-                resp = session.post(action, data=data, timeout=5)
+                resp = session.post(action, data=data, timeout=10)
             else:
-                resp = session.get(action, params=data, timeout=5)
+                resp = session.get(action, params=data, timeout=10)
         except Exception:
             continue
 
@@ -63,7 +63,7 @@ def check_xss_url_params(session, url):
         return findings
 
     try:
-        resp = session.get(base, params=params, timeout=5)
+        resp = session.get(base, params=params, timeout=10)
     except Exception:
         return findings
 

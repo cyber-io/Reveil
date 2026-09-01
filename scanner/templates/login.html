@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In // Reveil</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-body">
+
+    <div class="login-backdrop" aria-hidden="true">
+        <div class="login-grid-lines"></div>
+        <div class="login-glow login-glow-a"></div>
+        <div class="login-glow login-glow-b"></div>
+    </div>
+
+    <main class="login-shell">
+        <div class="login-card">
+            <div class="login-brand">
+                <img src="{{ url_for('static', filename='favicon.svg') }}" alt="Reveil" class="login-brand-logo">
+                <div>
+                    <div class="login-brand-name">Reveil</div>
+                    <div class="login-brand-tag">VULNERABILITY SCANNER</div>
+                </div>
+            </div>
+
+            <div class="login-heading">
+                <h1>Operator Sign-In</h1>
+                <p>Authenticate to access the scan console, findings, and audit history.</p>
+            </div>
+
+            {% if error %}
+                <div class="login-alert" role="alert">
+                    <strong>Access denied.</strong> {{ error }}
+                </div>
+            {% endif %}
+
+            <form method="POST" class="login-form" autocomplete="off">
+                <div class="form-group">
+                    <label class="form-label" for="username">Username</label>
+                    <input type="text" id="username" name="username" class="form-input" placeholder="scanadmin" required autocomplete="username" autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="password" name="password" class="form-input" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required autocomplete="current-password">
+                        <button type="button" class="password-toggle-btn" id="loginTogglePasswordBtn" title="Toggle password visibility">&#128065;</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary login-submit">
+                    <span class="btn-text">Sign In to Console</span>
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById("loginTogglePasswordBtn").addEventListener("click", function () {
+            var input = document.getElementById("password");
+            var isPass = input.type === "password";
+            input.type = isPass ? "text" : "password";
+            this.textContent = isPass ? "\u{1F512}" : "\u{1F441}";
+        });
+    </script>
+</body>
+</html>

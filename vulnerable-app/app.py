@@ -5,11 +5,13 @@ Built for security research / portfolio purposes ONLY.
 Do not deploy this publicly or reuse this code in production.
 
 Vulnerabilities included (each marked with # VULN: in the code):
-  1. SQL Injection       - /login
-  2. Reflected XSS       - /search
-  3. IDOR                - /profile/<id>
-  4. Broken Auth         - weak session secret + no password hashing
-  5. Missing security headers (checked by the scanner, not fixed here)
+  1. SQL Injection            - /login
+  2. Reflected XSS            - /search
+  3. IDOR                     - /profile/<id>
+  4. Broken Auth              - weak session secret + no password hashing
+  5. CSRF                     - /transfer (state-changing POST, no anti-CSRF token)
+  6. Broken Access Control    - /admin (no role/permission check, just login check)
+  7. Missing security headers (checked by the scanner, not fixed here)
 """
 
 from flask import Flask, request, render_template, redirect, session, g
@@ -139,8 +141,74 @@ def search():
     return render_template("search.html", query=query)
 
 
+@app.route("/transfer", methods=["GET", "POST"])
+def transfer():
+    if "username" not in session:
+        return redirect("/login")
+
+    message = None
+    error = None
+
+    if request.method == "POST":
+        # VULN 5: CSRF - this is a state-changing action (moves money
+        # out of the logged-in user's account) authenticated purely by
+        # the session cookie, with no anti-CSRF token. The browser
+        # attaches cookies automatically, so a malicious page visited
+        # by a logged-in victim can auto-submit this exact form and
+        # the server has no way to tell the request wasn't intentional.
+        to_username = request.form.get("to_username", "").strip()
+        try:
+            amount = int(request.form.get("amount", "0"))
+        except ValueError:
+            amount = 0
+
+        db = get_db()
+        cur = db.cursor()
+        cur.execute("SELECT balance FROM users WHERE id = ?", (session["user_id"],))
+        sender = cur.fetchone()
+        cur.execute("SELECT id FROM users WHERE username = ?", (to_username,))
+        recipient = cur.fetchone()
+
+        if not recipient:
+            error = f"No account found for '{to_username}'."
+        elif amount <= 0:
+            error = "Enter a valid transfer amount."
+        elif sender["balance"] < amount:
+            error = "Insufficient funds."
+        else:
+            cur.execute("UPDATE users SET balance = balance - ? WHERE id = ?", (amount, session["user_id"]))
+            cur.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (amount, recipient["id"]))
+            db.commit()
+            message = f"Transferred ${amount} to {to_username}."
+
+    return render_template("transfer.html", message=message, error=error)
+
+
+@app.route("/admin")
+def admin():
+    # VULN 6: Broken Access Control - this only checks that *someone*
+    # is logged in, never that they hold the admin role. There is no
+    # `session.get("is_admin")` check anywhere below, so alice or bob
+    # can browse straight to /admin and see every account's PII and
+    # balance, same as the real admin would.
+    if "username" not in session:
+        return redirect("/login")
+
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT id, username, email, balance, is_admin FROM users")
+    users = cur.fetchall()
+    return render_template("admin.html", users=users)
+
+
+# Runs on import, not just under `python app.py` - a production WSGI
+# server (gunicorn) imports this module and uses the `app` object
+# directly, it never executes the `if __name__ == "__main__"` block
+# below, so the seed DB has to be created here instead.
+init_db()
+
 if __name__ == "__main__":
-    init_db()
-    print("VulnBank running at http://127.0.0.1:5000")
+    port = int(os.environ.get("PORT", 5000))
+    print(f"VulnBank running at http://127.0.0.1:{port}")
     print("Seeded users: alice/alice123, bob/bobpass, admin/admin_super_secret")
-    app.run(debug=True, port=5000)
+    app.run(host="0.0.0.0", port=port, debug=True)

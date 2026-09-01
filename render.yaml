@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: vulnbank
+    runtime: python
+    rootDir: vulnerable-app
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --threads 4 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+
+  - type: web
+    name: reveil-scanner
+    runtime: python
+    rootDir: scanner
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn webui:app --workers 1 --threads 4 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      # Auto-generated and persisted by Render - keeps operator sessions
+      # valid across restarts/redeploys instead of a fresh random key
+      # each time.
+      - key: SCANNER_SECRET_KEY
+        generateValue: true
+      # sync: false -> Render prompts for these during blueprint setup
+      # instead of storing them in this file. Set both before the first
+      # deploy; never leave the scanadmin/scan123 defaults on a public
+      # instance - anyone holding them can drive the scanner at any URL.
+      - key: SCANNER_USERNAME
+        sync: false
+      - key: SCANNER_PASSWORD
+        sync: false

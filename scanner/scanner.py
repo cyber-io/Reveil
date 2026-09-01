@@ -6,6 +6,8 @@ A small educational scanner that crawls a target, then checks for:
   - SQL injection (error-based + auth-bypass)
   - Reflected XSS
   - IDOR (sequential ID access)
+  - CSRF (state-changing forms missing an anti-CSRF token)
+  - Broken Access Control (privileged endpoints reachable without a role check)
   - Missing security headers / weak cookie flags
 
 Usage:
@@ -22,13 +24,15 @@ from checks_sqli import check_sqli
 from checks_xss import check_xss_form, check_xss_url_params
 from checks_idor import find_idor_candidates, check_idor
 from checks_headers import check_headers, check_cookie_flags
+from checks_csrf import check_csrf
+from checks_bac import find_bac_candidates, check_bac
 
 
 def try_login(session, base_url, login_url, credentials):
     username, _, password = credentials.partition(":")
     full_url = base_url.rstrip("/") + login_url
     try:
-        resp = session.post(full_url, data={"username": username, "password": password}, timeout=5)
+        resp = session.post(full_url, data={"username": username, "password": password}, timeout=10)
         print(f"[*] Logged in as '{username}' (status {resp.status_code}, final URL {resp.url})")
     except Exception as e:
         print(f"[!] Login attempt failed: {e}")
@@ -51,7 +55,7 @@ def run_scan(target, login_url=None, credentials=None, max_pages=25, on_log=None
         username, _, password = credentials.partition(":")
         full_url = target.rstrip("/") + login_url
         try:
-            resp = session.post(full_url, data={"username": username, "password": password}, timeout=5)
+            resp = session.post(full_url, data={"username": username, "password": password}, timeout=10)
             log(f"[*] Logged in as '{username}' (status {resp.status_code}, final URL {resp.url})")
         except Exception as e:
             log(f"[!] Login attempt failed: {e}")
@@ -68,7 +72,7 @@ def run_scan(target, login_url=None, credentials=None, max_pages=25, on_log=None
 
     for url in pages:
         try:
-            resp = session.get(url, timeout=5)
+            resp = session.get(url, timeout=10)
         except Exception:
             continue
         for f in check_headers(resp, url):
@@ -108,11 +112,24 @@ def run_scan(target, login_url=None, credentials=None, max_pages=25, on_log=None
         for f in check_xss_url_params(session, url):
             add_finding(report, f)
 
+    # --- CSRF checks on every state-changing (POST) form ---
+    log(f"[*] Testing {len(forms)} form(s) for CSRF protection ...")
+    for page_url, form in forms:
+        for f in check_csrf(page_url, form):
+            add_finding(report, f)
+
     # --- IDOR checks on numeric-ID URLs ---
     candidates = find_idor_candidates(pages)
     log(f"[*] Testing {len(candidates)} numeric-ID endpoint(s) for IDOR ...")
     for url in candidates:
         for f in check_idor(session, url):
+            add_finding(report, f)
+
+    # --- Broken Access Control checks on privileged-looking endpoints ---
+    bac_candidates = find_bac_candidates(pages)
+    log(f"[*] Testing {len(bac_candidates)} privileged-looking endpoint(s) for broken access control ...")
+    for url in bac_candidates:
+        for f in check_bac(session, url):
             add_finding(report, f)
 
     log(f"[*] Scan complete - {len(report.findings)} finding(s)")

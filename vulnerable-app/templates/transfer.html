@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer Funds // VulnBank</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="lab-banner">
+        <span>SECURITY TESTING ENVIRONMENT &bull; VulnBank Research Application</span>
+    </div>
+
+    <header class="navbar">
+        <a href="/" class="brand">
+            <img src="{{ url_for('static', filename='favicon.svg') }}" alt="VulnBank" class="brand-icon">
+            <span class="brand-name">VulnBank</span>
+        </a>
+        <nav class="nav-links">
+            <a href="/dashboard" class="nav-link">Dashboard</a>
+            <a href="/search" class="nav-link">Search</a>
+            <a href="/logout" class="nav-link" style="color:var(--danger);">Logout</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h1 class="page-title">Transfer Funds</h1>
+            <p class="page-subtitle">Move money between VulnBank accounts instantly.</p>
+        </div>
+
+        <div class="card" style="max-width:480px;">
+            {% if message %}
+                <div class="alert-success" role="alert"><strong>Success:</strong> {{ message }}</div>
+            {% endif %}
+            {% if error %}
+                <div class="alert-danger" role="alert"><strong>Error:</strong> {{ error }}</div>
+            {% endif %}
+
+            <form method="POST" id="transferForm">
+                <div class="form-group">
+                    <label class="form-label" for="to_username">Recipient Username</label>
+                    <input type="text" id="to_username" name="to_username" class="form-input" placeholder="e.g. bob" required autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="amount">Amount (USD)</label>
+                    <input type="number" id="amount" name="amount" class="form-input" placeholder="100" min="1" required>
+                </div>
+
+                <button type="submit" class="btn-submit">Send Transfer</button>
+            </form>
+        </div>
+    </main>
+
+    <footer class="footer">
+        VulnBank &copy; 2026. Designed for security evaluation and vulnerability scanning labs.
+    </footer>
+</body>
+</html>

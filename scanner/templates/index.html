@@ -49,9 +49,13 @@
                 <span class="status-dot"></span>
                 <span class="status-text" id="statusText">READY</span>
             </div>
-            <button type="button" class="btn-download-report" id="headerDownloadBtn" style="display:none;" title="Download HTML Assessment Report">
-                Download Report
+            <button type="button" class="btn-download-report" id="headerDownloadBtn" style="display:none;" title="Download PDF Assessment Report">
+                Download PDF
             </button>
+            <div class="operator-menu">
+                <span class="operator-pill mono" title="Signed in operator">{{ operator or 'operator' }}</span>
+                <a href="/logout" class="btn-subtle operator-logout" title="Sign out">Sign Out</a>
+            </div>
         </div>
     </header>
 
@@ -72,46 +76,20 @@
         <!-- ==================== VIEW 1: TARGET CONFIGURATION ==================== -->
         <section class="view-panel active" id="view-config" role="tabpanel">
             <div class="config-grid">
-                <!-- Left: Form -->
                 <div class="panel-card form-panel">
                     <div class="card-header">
                         <h2>Target Specification</h2>
-                        <p>Define the web application endpoint and audit parameters.</p>
+                        <p>Point the scanner at any web application you're authorized to test &mdash; the bundled local lab or a hosted target.</p>
                     </div>
 
                     <form id="scanForm" class="scan-form">
                         <div class="form-group">
                             <label for="target" class="form-label">TARGET URL <span class="required">*</span></label>
                             <div class="input-with-action">
-                                <input type="text" id="target" name="target" class="form-input mono" placeholder="http://127.0.0.1:5000" required autocomplete="off">
+                                <input type="text" id="target" name="target" class="form-input mono" placeholder="https://your-authorized-target.com" required autocomplete="off">
                                 <button type="button" class="input-clear-btn" id="clearTargetBtn" title="Clear URL">&times;</button>
                             </div>
-                        </div>
-
-                        <div class="accordion-section">
-                            <div class="accordion-header" id="authAccordionToggle">
-                                <span class="accordion-title">Authentication Settings (Optional)</span>
-                                <span class="accordion-chevron">&#9662;</span>
-                            </div>
-                            <div class="accordion-content" id="authAccordionContent">
-                                <div class="form-group">
-                                    <label for="loginUrl" class="form-label">LOGIN ENDPOINT</label>
-                                    <input type="text" id="loginUrl" name="login_url" class="form-input mono" placeholder="/login" autocomplete="off">
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="username" class="form-label">USERNAME</label>
-                                        <input type="text" id="username" name="username" class="form-input" placeholder="e.g. alice" autocomplete="username">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="password" class="form-label">PASSWORD</label>
-                                        <div class="password-wrapper">
-                                            <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" autocomplete="current-password">
-                                            <button type="button" class="password-toggle-btn" id="togglePasswordBtn" title="Toggle password visibility">&#128065;</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <p class="field-hint">Only scan systems you own or have explicit written authorization to test.</p>
                         </div>
 
                         <div class="form-group">
@@ -134,52 +112,15 @@
                             </button>
                         </div>
                     </form>
-                </div>
 
-                <!-- Right: Engine & Overview -->
-                <div class="panel-card info-panel">
-                    <div class="card-header">
-                        <h2>Audit Engine Suite</h2>
-                        <p>Configured detection modules executed during audit sequence.</p>
-                    </div>
-
-                    <div class="engine-list">
-                        <div class="engine-item">
-                            <div class="engine-status active"></div>
-                            <div class="engine-details">
-                                <div class="engine-name">SQL Injection Engine</div>
-                                <div class="engine-desc">Detects error-based SQLi and authentication bypass vulnerabilities across input forms.</div>
-                            </div>
-                        </div>
-
-                        <div class="engine-item">
-                            <div class="engine-status active"></div>
-                            <div class="engine-details">
-                                <div class="engine-name">Reflected XSS Engine</div>
-                                <div class="engine-desc">Audits URL parameters and form inputs for unescaped HTML/JavaScript reflection.</div>
-                            </div>
-                        </div>
-
-                        <div class="engine-item">
-                            <div class="engine-status active"></div>
-                            <div class="engine-details">
-                                <div class="engine-name">Insecure Direct Object Reference (IDOR)</div>
-                                <div class="engine-desc">Probes numeric resource endpoints for missing authorization controls.</div>
-                            </div>
-                        </div>
-
-                        <div class="engine-item">
-                            <div class="engine-status active"></div>
-                            <div class="engine-details">
-                                <div class="engine-name">Security Headers &amp; Cookie Audit</div>
-                                <div class="engine-desc">Validates CSP, HSTS, X-Frame-Options, and Secure/HttpOnly cookie attributes.</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="scope-box">
-                        <h3>Scan Protocol</h3>
-                        <p>The scanner crawls within the target domain up to the specified page limit, maintaining active session state after login and testing all discovered forms and parameters.</p>
+                    <div class="coverage-strip">
+                        <span class="coverage-label">Detection coverage</span>
+                        <span class="coverage-pill">SQL Injection</span>
+                        <span class="coverage-pill">XSS</span>
+                        <span class="coverage-pill">IDOR</span>
+                        <span class="coverage-pill">CSRF</span>
+                        <span class="coverage-pill">Broken Access Control</span>
+                        <span class="coverage-pill">Security Headers</span>
                     </div>
                 </div>
             </div>
@@ -222,7 +163,7 @@
                     </div>
                     <div class="report-meta-right">
                         <span class="posture-badge" id="repPostureBadge">MODERATE RISK</span>
-                        <button type="button" class="btn-download-report" id="downloadReportBtn">Export HTML Report</button>
+                        <button type="button" class="btn-download-report" id="downloadReportBtn">Export PDF Report</button>
                     </div>
                 </div>
 

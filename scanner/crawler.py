@@ -56,7 +56,7 @@ def crawl(session, base_url, max_pages=25):
         visited.add(url)
 
         try:
-            resp = session.get(url, timeout=5)
+            resp = session.get(url, timeout=10)
         except Exception:
             continue
         if "text/html" not in resp.headers.get("Content-Type", ""):
@@ -73,6 +73,13 @@ def crawl(session, base_url, max_pages=25):
             parsed = urlparse(full)
             if parsed.netloc == base_netloc and parsed.scheme in ("http", "https"):
                 clean = full.split("#")[0]
+                # Never crawl logout links - following one invalidates the
+                # authenticated session for the rest of the crawl, which
+                # silently corrupts every check that runs afterward (pages
+                # start redirecting to the login form instead of their
+                # real content).
+                if "logout" in urlparse(clean).path.lower():
+                    continue
                 if clean not in visited:
                     to_visit.append(clean)
 

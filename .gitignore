@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# SQLite database (regenerated automatically on startup via init_db())
+vulnerable-app/vulnbank.db
+
+# Scanner runtime output
+scanner/scan_report.html
+scanner/scan_report.pdf
+
+# Environment / secrets
+.env
+.env.*
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

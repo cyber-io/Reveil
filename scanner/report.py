@@ -1,6 +1,7 @@
 """
 Report generation for the scanner - collects findings and renders
-them as console output and a standalone HTML report.
+them as console output, a standalone HTML report, and a downloadable
+PDF report.
 """
 from datetime import datetime
 from html import escape
@@ -35,6 +36,116 @@ SEVERITY_COLOR = {
     "Low": "#f1c40f",
     "Info": "#3498db",
 }
+SEVERITY_HEX_PDF = {
+    "Critical": "#B91C1C",
+    "High": "#C2410C",
+    "Medium": "#B45309",
+    "Low": "#1D4ED8",
+    "Info": "#475569",
+}
+
+
+def _finding_details(title):
+    """Shared CWE/OWASP tag + mechanism explainer + remediation lookup
+    used by both the HTML and PDF renderers, keyed off the finding
+    title. The "mechanism" text explains *how this class of bug is
+    exploitable in general* - the finding's own description/evidence
+    fields (rendered separately) cover what was specifically observed
+    on this target."""
+    title_lower = title.lower()
+    if "sql injection" in title_lower or "sqli" in title_lower:
+        return (
+            "CWE-89: SQL Injection | OWASP A03:2021-Injection",
+            "The application builds a SQL query by concatenating user input "
+            "directly into the query string instead of passing it as a bound "
+            "parameter. The database can't distinguish the developer's SQL "
+            "from an attacker's, so characters like a single quote (') let an "
+            "attacker alter the query's logic - injecting a tautology "
+            "(' OR '1'='1) to match every row, or a comment marker (--) to "
+            "truncate the rest of the query and skip a password check "
+            "entirely.",
+            "Use parameterized queries (prepared statements) or an ORM for all "
+            "database access. Never concatenate user input directly into SQL strings.",
+        )
+    if "xss" in title_lower:
+        return (
+            "CWE-79: Cross-Site Scripting (XSS) | OWASP A03:2021-Injection",
+            "User-supplied input (a query parameter or form field) is written "
+            "back into the HTML response without being escaped. Browsers "
+            "can't tell attacker-supplied markup apart from the page's own "
+            "markup, so a <script> tag placed in the input runs with the "
+            "same privileges as the site itself - letting an attacker steal "
+            "session cookies, log keystrokes, or fully control the page for "
+            "any victim who opens a crafted link.",
+            "Ensure all untrusted input is contextually HTML-escaped before "
+            "rendering. Avoid Jinja2 '|safe' filters unless content is "
+            "pre-sanitized with Bleach.",
+        )
+    if "csrf" in title_lower or "cross-site request forgery" in title_lower:
+        return (
+            "CWE-352: Cross-Site Request Forgery (CSRF) | OWASP A01:2021-Broken Access Control",
+            "The state-changing request is authenticated only by information "
+            "the browser attaches automatically - the session cookie - with "
+            "no unpredictable, per-request token that a third-party page "
+            "couldn't know. Because cookies ride along on requests regardless "
+            "of which page triggered them, a malicious page visited by a "
+            "logged-in victim can silently auto-submit this exact form using "
+            "the victim's own authenticated session.",
+            "Implement anti-CSRF tokens on all state-changing forms (e.g. "
+            "Flask-WTF's CSRFProtect) and set session cookies with "
+            "SameSite=Lax or Strict.",
+        )
+    if "broken access control" in title_lower:
+        return (
+            "CWE-862: Missing Authorization | OWASP A01:2021-Broken Access Control",
+            "The route checks only that *a* user is authenticated, never "
+            "that the specific logged-in user is authorized to reach this "
+            "particular function. Since there's no role or permission check "
+            "gating the endpoint, any account - regardless of privilege "
+            "level - can reach functionality that should be restricted to "
+            "administrators, simply by requesting the URL directly.",
+            "Enforce server-side role/permission checks on every privileged "
+            "route. Deny by default and verify the session user's role before "
+            "serving administrative functionality.",
+        )
+    if "idor" in title_lower:
+        return (
+            "CWE-639: Insecure Direct Object References | OWASP A01:2021-Broken Access Control",
+            "The endpoint uses a client-supplied identifier (a sequential "
+            "numeric ID in the URL) to fetch a record, but never checks that "
+            "the ID belongs to the requesting user. Because the identifier "
+            "is predictable, an attacker can simply increment or guess "
+            "nearby values to pull back other users' records one at a time.",
+            "Enforce server-side authorization checks on every object request. "
+            "Verify that the authenticated session user owns or is authorized "
+            "to view the requested ID.",
+        )
+    if "missing security header" in title_lower:
+        header_name = title.split(":")[-1].strip()
+        return (
+            "CWE-693: Protection Mechanism Failure | OWASP A05:2021-Security Misconfiguration",
+            "Modern browsers only enable extra protections - restricting "
+            "which script sources can run, blocking the page from being "
+            "framed, disabling MIME-type guessing, forcing HTTPS - when the "
+            "server explicitly opts in via a response header. Without it, "
+            "the browser falls back to permissive defaults, widening the "
+            "blast radius of any other vulnerability on the page.",
+            f"Configure the web server or application middleware to return the "
+            f"'{header_name}' header in all HTTP responses.",
+        )
+    if "cookie" in title_lower:
+        return (
+            "CWE-614 / CWE-1004: Sensitive Cookie Without Security Flags | OWASP A05:2021",
+            "A session cookie without the HttpOnly flag can be read by any "
+            "JavaScript running on the page - including a script injected "
+            "via XSS - handing over the session outright. Without the "
+            "Secure flag, the same cookie can also be transmitted over "
+            "plain HTTP, exposing it to anyone on the network path.",
+            "Configure session cookies with 'HttpOnly', 'Secure', and "
+            "'SameSite=Lax' (or Strict) attributes to prevent script access "
+            "and unencrypted transmission.",
+        )
+    return ("", "", "")
 
 
 class Report:
@@ -85,26 +196,7 @@ class Report:
         for f in self.sorted_findings():
             color = SEVERITY_COLOR.get(f.severity, "#888")
             sev_class = f.severity.lower()
-            
-            # Contextual remediation snippet based on finding type
-            remediation = ""
-            cwe_tag = ""
-            title_lower = f.title.lower()
-            if "sql injection" in title_lower or "sqli" in title_lower:
-                cwe_tag = "CWE-89: SQL Injection | OWASP A03:2021-Injection"
-                remediation = "Use parameterized queries (prepared statements) or an ORM for all database access. Never concatenate user input directly into SQL strings."
-            elif "xss" in title_lower:
-                cwe_tag = "CWE-79: Cross-Site Scripting (XSS) | OWASP A03:2021-Injection"
-                remediation = "Ensure all untrusted input is contextually HTML-escaped before rendering. Avoid Jinja2 '|safe' filters unless content is pre-sanitized with Bleach."
-            elif "idor" in title_lower:
-                cwe_tag = "CWE-639: Insecure Direct Object References | OWASP A01:2021-Broken Access Control"
-                remediation = "Enforce server-side authorization checks on every object request. Verify that the authenticated session user owns or is authorized to view the requested ID."
-            elif "missing security header" in title_lower:
-                cwe_tag = "CWE-693: Protection Mechanism Failure | OWASP A05:2021-Security Misconfiguration"
-                remediation = f"Configure the web server or application middleware to return the '{escape(f.title.split(':')[-1].strip())}' header in all HTTP responses."
-            elif "cookie" in title_lower:
-                cwe_tag = "CWE-614 / CWE-1004: Sensitive Cookie Without Security Flags | OWASP A05:2021"
-                remediation = "Configure session cookies with 'HttpOnly', 'Secure', and 'SameSite=Lax' (or Strict) attributes to prevent script access and unencrypted transmission."
+            cwe_tag, mechanism, remediation = _finding_details(f.title)
 
             findings_html += f"""
             <div class="finding-card sev-{sev_class}">
@@ -122,6 +214,10 @@ class Report:
                         <div class="section-title">ANALYSIS & IMPACT</div>
                         <p>{escape(f.description)}</p>
                     </div>
+                    {f'''<div class="mechanism-box">
+                        <div class="section-title">HOW THIS VULNERABILITY WORKS</div>
+                        <p>{escape(mechanism)}</p>
+                    </div>''' if mechanism else ''}
                     {f'''<div class="evidence-box">
                         <div class="section-title">TECHNICAL EVIDENCE & TEST VECTOR</div>
                         <pre class="evidence-content">{escape(f.evidence)}</pre>
@@ -223,7 +319,7 @@ class Report:
     .meta-item {{ display: flex; flex-direction: column; gap: 4px; }}
     .meta-label {{ color: var(--text-dim); font-size: 11px; letter-spacing: 1px; }}
     .meta-value {{ color: var(--text); word-break: break-all; }}
-    
+
     .metrics-summary {{
         display: grid;
         grid-template-columns: repeat(5, 1fr);
@@ -332,7 +428,13 @@ class Report:
         margin-bottom: 6px;
         text-transform: uppercase;
     }}
-    .desc-box, .remediation-box {{ font-size: 14px; color: var(--text-muted); line-height: 1.6; }}
+    .desc-box, .remediation-box, .mechanism-box {{ font-size: 14px; color: var(--text-muted); line-height: 1.6; }}
+    .mechanism-box {{
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px 14px;
+    }}
     .evidence-box {{
         background: #07090E;
         border: 1px solid var(--border);
@@ -368,6 +470,7 @@ class Report:
         .finding-card, .meta-grid, .metric-card {{ border-color: #ddd; background: #fff; color: #000; }}
         .evidence-box {{ background: #f5f5f5; border-color: #ccc; color: #000; }}
         .evidence-content {{ color: #000; }}
+        .mechanism-box {{ background: #f8fafc; border-color: #ddd; color: #000; }}
         .remediation-box {{ background: #f0fdf4; border-color: #86efac; color: #000; }}
     }}
 </style>
@@ -413,3 +516,201 @@ class Report:
         with open(path, "w", encoding="utf-8") as f:
             f.write(self.to_html())
 
+    def to_pdf(self):
+        """Render this report as a standalone PDF (bytes) using reportlab.
+        Built as native PDF flowables rather than an HTML->PDF conversion,
+        since reportlab's HTML support doesn't cover the flexbox/grid CSS
+        used in to_html()."""
+        from io import BytesIO
+        from xml.sax.saxutils import escape as xesc
+        from reportlab.lib.pagesizes import LETTER
+        from reportlab.lib.units import inch
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER
+        from reportlab.platypus import (
+            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+            HRFlowable, KeepTogether,
+        )
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+        DARK = colors.HexColor("#0B0E14")
+        MUTED = colors.HexColor("#475569")
+        BORDER = colors.HexColor("#D8DEE9")
+        PANEL = colors.HexColor("#F8FAFC")
+
+        buf = BytesIO()
+        doc = SimpleDocTemplate(
+            buf, pagesize=LETTER,
+            topMargin=0.65 * inch, bottomMargin=0.65 * inch,
+            leftMargin=0.6 * inch, rightMargin=0.6 * inch,
+            title=f"Security Assessment Report - {self.target}",
+        )
+
+        styles = getSampleStyleSheet()
+        style_brand = ParagraphStyle(
+            "brand", parent=styles["Normal"], fontName="Helvetica-Bold",
+            fontSize=9, textColor=colors.HexColor("#0891B2"), spaceAfter=6,
+        )
+        style_h1 = ParagraphStyle(
+            "h1", parent=styles["Heading1"], fontSize=20, textColor=DARK, spaceAfter=8,
+        )
+        style_meta_label = ParagraphStyle(
+            "metaLabel", parent=styles["Normal"], fontSize=7.5, textColor=MUTED,
+        )
+        style_meta_val = ParagraphStyle(
+            "metaVal", parent=styles["Normal"], fontSize=10, textColor=DARK,
+            fontName="Helvetica-Bold", spaceBefore=2,
+        )
+        style_section = ParagraphStyle(
+            "section", parent=styles["Heading2"], fontSize=13, textColor=DARK,
+            spaceBefore=4, spaceAfter=2,
+        )
+        style_finding_title = ParagraphStyle(
+            "findingTitle", parent=styles["Normal"], fontSize=11.5, textColor=DARK,
+            fontName="Helvetica-Bold", leading=15,
+        )
+        style_label = ParagraphStyle(
+            "label", parent=styles["Normal"], fontSize=7.5, textColor=MUTED,
+            fontName="Helvetica-Bold", spaceAfter=2,
+        )
+        style_rem_label = ParagraphStyle(
+            "remLabel", parent=style_label, textColor=colors.HexColor("#047857"),
+        )
+        style_body = ParagraphStyle(
+            "body", parent=styles["Normal"], fontSize=9.5, textColor=DARK, leading=13,
+        )
+        style_mono = ParagraphStyle(
+            "mono", parent=styles["Normal"], fontName="Courier", fontSize=8.3,
+            textColor=DARK, leading=11.5,
+        )
+        style_cwe = ParagraphStyle(
+            "cwe", parent=styles["Normal"], fontSize=8, textColor=MUTED,
+            fontName="Helvetica-Oblique",
+        )
+        style_val_num = ParagraphStyle(
+            "valNum", parent=styles["Normal"], fontSize=18, fontName="Helvetica-Bold",
+            alignment=TA_CENTER,
+        )
+        style_val_lbl = ParagraphStyle(
+            "valLbl", parent=styles["Normal"], fontSize=7.5, textColor=MUTED,
+            alignment=TA_CENTER, spaceBefore=2,
+        )
+
+        story = []
+        story.append(Paragraph("REVEIL SECURITY SUITE", style_brand))
+        story.append(Paragraph("Web Vulnerability Assessment Report", style_h1))
+
+        meta_table = Table(
+            [
+                [
+                    Paragraph("TARGET URL", style_meta_label),
+                    Paragraph("ASSESSMENT DATE", style_meta_label),
+                    Paragraph("TOTAL FINDINGS", style_meta_label),
+                ],
+                [
+                    Paragraph(xesc(self.target), style_meta_val),
+                    Paragraph(self.started_at.strftime("%Y-%m-%d %H:%M:%S"), style_meta_val),
+                    Paragraph(f"{len(self.findings)} Vulnerabilities", style_meta_val),
+                ],
+            ],
+            colWidths=[2.9 * inch, 2.0 * inch, 2.0 * inch],
+        )
+        meta_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), PANEL),
+            ("BOX", (0, 0), (-1, -1), 0.75, BORDER),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ]))
+        story.append(meta_table)
+        story.append(Spacer(1, 16))
+
+        counts = self.severity_counts()
+        sev_cells = []
+        for sev in ["Critical", "High", "Medium", "Low", "Info"]:
+            hexcolor = colors.HexColor(SEVERITY_HEX_PDF[sev])
+            cell = Table(
+                [
+                    [Paragraph(str(counts.get(sev, 0)), ParagraphStyle(
+                        f"val_{sev}", parent=style_val_num, textColor=hexcolor))],
+                    [Paragraph(sev.upper(), style_val_lbl)],
+                ],
+                colWidths=[1.15 * inch],
+            )
+            cell.setStyle(TableStyle([
+                ("BOX", (0, 0), (-1, -1), 1, hexcolor),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]))
+            sev_cells.append(cell)
+        summary_row = Table([sev_cells], colWidths=[1.25 * inch] * 5)
+        summary_row.setStyle(TableStyle([
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(summary_row)
+        story.append(Spacer(1, 18))
+
+        story.append(Paragraph("VULNERABILITY FINDINGS BREAKDOWN", style_section))
+        story.append(HRFlowable(width="100%", color=BORDER, thickness=0.75, spaceAfter=12))
+
+        if not self.findings:
+            story.append(Paragraph("No vulnerabilities detected on the scanned endpoints.", style_body))
+        else:
+            for f in self.sorted_findings():
+                hexcolor = colors.HexColor(SEVERITY_HEX_PDF.get(f.severity, "#475569"))
+                cwe_tag, mechanism, remediation = _finding_details(f.title)
+
+                content = [
+                    Paragraph(
+                        f'<font color="{SEVERITY_HEX_PDF.get(f.severity, "#475569")}">'
+                        f'[{xesc(f.severity.upper())}]</font> {xesc(f.title)}',
+                        style_finding_title,
+                    ),
+                    Spacer(1, 6),
+                    Paragraph(
+                        f"<b>TARGET ENDPOINT:</b> <font face='Courier'>{xesc(f.url)}</font>",
+                        style_body,
+                    ),
+                ]
+                if cwe_tag:
+                    content.append(Spacer(1, 4))
+                    content.append(Paragraph(xesc(cwe_tag), style_cwe))
+                content.append(Spacer(1, 6))
+                content.append(Paragraph("ANALYSIS &amp; IMPACT", style_label))
+                content.append(Paragraph(xesc(f.description), style_body))
+                if mechanism:
+                    content.append(Spacer(1, 6))
+                    content.append(Paragraph("HOW THIS VULNERABILITY WORKS", style_label))
+                    content.append(Paragraph(xesc(mechanism), style_body))
+                if f.evidence:
+                    content.append(Spacer(1, 6))
+                    content.append(Paragraph("TECHNICAL EVIDENCE", style_label))
+                    content.append(Paragraph(xesc(f.evidence).replace("\n", "<br/>"), style_mono))
+                if remediation:
+                    content.append(Spacer(1, 6))
+                    content.append(Paragraph("RECOMMENDED REMEDIATION", style_rem_label))
+                    content.append(Paragraph(xesc(remediation), style_body))
+
+                card = Table([[Spacer(1, 1), content]], colWidths=[0.09 * inch, 6.51 * inch])
+                card.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (0, 0), hexcolor),
+                    ("BOX", (0, 0), (-1, -1), 0.75, BORDER),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("TOPPADDING", (0, 0), (0, 0), 0),
+                    ("BOTTOMPADDING", (0, 0), (0, 0), 0),
+                    ("LEFTPADDING", (0, 0), (0, 0), 0),
+                    ("RIGHTPADDING", (0, 0), (0, 0), 0),
+                    ("TOPPADDING", (1, 0), (1, 0), 10),
+                    ("BOTTOMPADDING", (1, 0), (1, 0), 10),
+                    ("LEFTPADDING", (1, 0), (1, 0), 12),
+                    ("RIGHTPADDING", (1, 0), (1, 0), 12),
+                ]))
+                story.append(KeepTogether([card, Spacer(1, 12)]))
+
+        doc.build(story)
+        return buf.getvalue()
+
+    def save_pdf(self, path):
+        with open(path, "wb") as f:
+            f.write(self.to_pdf())

@@ -46,7 +46,7 @@ def check_idor(session, url, id_range=3):
             continue
         test_url = f"{base}{prefix}{test_id}{suffix}"
         try:
-            resp = session.get(test_url, timeout=5, allow_redirects=False)
+            resp = session.get(test_url, timeout=10, allow_redirects=False)
         except Exception:
             continue
 
