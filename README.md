@@ -19,14 +19,14 @@ scanning anything you don't own.
 ```bash
 # Terminal 1: run the vulnerable app
 cd vulnerable-app
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 python3 app.py
 # -> running at http://127.0.0.1:5000
 # seeded users: alice/alice123, bob/bobpass, admin/admin_super_secret
 
 # Terminal 2: run the scanner
 cd scanner
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
 # Option A - CLI:
 python3 scanner.py http://127.0.0.1:5000 --login-url /login --login alice:alice123
